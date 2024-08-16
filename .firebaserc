@@ -1,0 +1,14 @@
+{
+  "targets": {
+    "ringoffire-398bd": {
+      "hosting": {
+        "ringoffire": [
+          "ringoffire-398bd"
+        ]
+      }
+    }
+  },
+  "projects": {
+    "default": "ringoffire-398bd"
+  }
+}
