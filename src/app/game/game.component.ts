@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Game } from '../../models/game';
 import { PlayerComponent } from '../player/player.component';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,9 +7,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogAddPlayerComponent } from '../dialog-add-player/dialog-add-player.component';
 import { GameInfoComponent } from '../game-info/game-info.component';
-import { Firestore, collection, collectionData, docSnapshots, updateDoc, addDoc } from '@angular/fire/firestore';
+import { Firestore, collection, collectionData, docSnapshots, updateDoc, addDoc, docData } from '@angular/fire/firestore';
 import { Observable, Subscription } from 'rxjs';
 import { onSnapshot, doc } from 'firebase/firestore';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-game',
@@ -18,7 +19,7 @@ import { onSnapshot, doc } from 'firebase/firestore';
   templateUrl: './game.component.html',
   styleUrl: './game.component.scss'
 })
-export class GameComponent implements OnInit {
+export class GameComponent implements OnInit, OnDestroy {
   pickCardAnimation = false;
   currentCard: string = '';
   game!: Game;
@@ -27,15 +28,18 @@ export class GameComponent implements OnInit {
   firestore: Firestore = inject(Firestore);
   items$!: Observable<any[]>;
   itemsSubscription!: Subscription;
+  game$!: Observable<any>;
 
-  constructor(public dialog: MatDialog) {
+  constructor(private route:ActivatedRoute ,public dialog: MatDialog) {
 
   }
 
   ngOnInit(): void {
-    console.log("init");
     this.newGame();
-
+    this.route.params.subscribe((params) =>{
+      console.log(params['id']);     
+      this.subscribeToItems(params['id']);
+    })
   }
 
   ngOnDestroy(): void {
@@ -44,29 +48,39 @@ export class GameComponent implements OnInit {
     }
   }
 
+  getSingleGameRef(gameId:string){
+    return doc(collection(this.firestore, `game`), gameId);
+  }
+
   getGameRef() {
     return collection(this.firestore, 'games');
   }
 
   async newGame() {
-    console.log("new game");
     this.game = new Game();
-    setTimeout(async () => {
-      const docRef = await addDoc(this.getGameRef(), this.game.toJson());
-      console.log("Neues Spiel-Dokument erstellt mit ID:", docRef.id);
-      this.subscribeToItems();
-      console.log("test");
-    }, 1000);
-
+    // const docRef = await addDoc(this.getGameRef(), this.game.toJson());
+    // console.log("Neues Spiel-Dokument erstellt mit ID:", docRef.id);
+    // this.subscribeToItems();
   }
 
-  subscribeToItems() {
-    this.items$ = collectionData(this.getGameRef());
-    this.itemsSubscription = this.items$.subscribe(item => {
-      console.log('Daten aus Firebase:', item);
+  subscribeToItems(gameId:any): void {
+      // this.game$ = collectionData(this.getGameRef());
+      const gameDocRef = this.getSingleGameRef(gameId);
+      console.log(gameDocRef.id);
+      
+      this.itemsSubscription = docData(gameDocRef).subscribe((currentGame:any) => {
+      console.log('sads', currentGame);
+      
+      if(this.game){
+      this.game.currentPlayer = currentGame.currentPlayer;
+      this.game.playedCards = currentGame.playedCards;
+      this.game.players = currentGame.players;
+      this.game.stack = currentGame.stack;
+      console.log(this.game);
+      }
+    
     });
-    console.log("testS");
-
+    
   }
 
   takeCard() {
